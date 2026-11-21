@@ -837,7 +837,7 @@ function on_paint(gr) {
 	CloseBtn.Paint(gr);
 	MaxBtn.Paint(gr);
 	MinBtn.Paint(gr);
-	title_w = gr.CalcTextWidth(TopTitle.Text+" ", g_font);
+	title_w = gr.CalcTextWidth(TopTitle.Text, g_font);
 	if(show_menu) {
 		gr.FillSolidRect(0, 0, leftbarw, topbarh - 1, c_menubar);
 		gr.DrawImage(img_ico, Math.round((menuicow - img_ico.Width)/2), Math.round((topbarh-img_ico.Height)/2), img_ico.Width, img_ico.Height, 0, 0, img_ico.Width, img_ico.Height);
@@ -1123,8 +1123,8 @@ function on_playback_new_track(info) {
 	}
 	
 	TopTitle.Text = fb.TitleFormat("%title%").EvalWithMetadb(info);
-	TopSubTitle.Text = fb.TitleFormat("$if2( - %artist%,)$if2(\xa0 | \xa0%album%,)").EvalWithMetadb(info);
-	if(top_addtext != "") TopSubTitle.Text = TopSubTitle.Text + "\xa0 | \xa0" + fb.TitleFormat(top_addtext).EvalWithMetadb(info);
+	TopSubTitle.Text = fb.TitleFormat("$if2( - %artist%,)$if2( | %album%,)").EvalWithMetadb(info);
+	if(top_addtext != "") TopSubTitle.Text = TopSubTitle.Text + " | " + fb.TitleFormat(top_addtext).EvalWithMetadb(info);
 	repaintWin("TX");
 }
 
@@ -1133,8 +1133,8 @@ function on_metadb_changed(handles, fromhook) {
 		metadb = fb.GetNowPlaying();
 		if(metadb && handles.Find(metadb) > -1){
 			TopTitle.Text = fb.TitleFormat("%title%").EvalWithMetadb(metadb);
-			TopSubTitle.Text = fb.TitleFormat("$if2( - %artist%,)$if2(\xa0 | \xa0%album%,)").EvalWithMetadb(metadb);
-			if(top_addtext != "") TopSubTitle.Text = TopSubTitle.Text + "\xa0 | \xa0" + fb.TitleFormat(top_addtext).EvalWithMetadb(metadb);
+			TopSubTitle.Text = fb.TitleFormat("$if2( - %artist%,)$if2( | %album%,)").EvalWithMetadb(metadb);
+			if(top_addtext != "") TopSubTitle.Text = TopSubTitle.Text + " | " + fb.TitleFormat(top_addtext).EvalWithMetadb(metadb);
 			repaintWin("TX");
 		}
 	}
