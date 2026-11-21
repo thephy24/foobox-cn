@@ -21,6 +21,8 @@ var track_len = 0, PlaybackTimeText, PlaybackLengthText, TopTitle, TopSubTitle, 
 var VolumeBar, seekbar, TimeTip, VolumeTip, MuteBtn, PBOBtn, OutBtn, LibBtn, MenubarBtn = [];
 var img_ico = gdi.Image(fb.ProfilePath + "foobox\\script\\images\\foobar2000.png");
 var show_menu = 1, colorful_seek = 1, show_extrabtn = 1;
+var menu_closed_t = 0, menu_closed_i = -1; var win_maxed = false, win_max_known = false;
+
 var btnall = true;
 var fbver = Number(fb.Version.substr(0, 1));
 var lib_albumlist = 1;
@@ -643,6 +645,7 @@ function menu_bar(i) {
 	}
 
 	var ret = _menu.TrackPopupMenu(x, topbarh);//, 0x0008);
+  if(ret){ menu_closed_t = 0; menu_closed_i = -1; } else { menu_closed_t = (new Date()).getTime(); menu_closed_i = i; }
 
 	switch (true) {
 	case (ret >= 1 && ret < 201):
@@ -818,7 +821,7 @@ function on_size() {
 	window.MinHeight = minh;
 	init_obj();
 	setSize();
-	if(ww) set_panel();
+	if(ww) set_panel(); sync_win_state();
 	UiCompSetCaption();
 }
 
@@ -868,7 +871,7 @@ function on_paint(gr) {
 		TopTitle.SetSize(leftbarw, 0, title_w, topbarh);
 		TopSubTitle.SetSize(leftbarw + title_w, 0, captionw - title_w - g_fsize, topbarh);
 	}
-	if(UIComp.WindowState == 2) gr.DrawImage(img_restore, Math.round(ww - topbtnw*1.5 - img_restore.Width/2), 1, img_restore.Width, img_restore.Height, 0, 0, img_restore.Width, img_restore.Height);
+	if(win_maxed) gr.DrawImage(img_restore, Math.round(ww - topbtnw*1.5 - img_restore.Width/2), 1, img_restore.Width, img_restore.Height, 0, 0, img_restore.Width, img_restore.Height);
 	else gr.DrawImage(img_max, Math.round(ww - topbtnw*1.5 - img_max.Width/2), 1, img_max.Width, img_max.Height, 0, 0, img_max.Width, img_max.Height);
 	gr.DrawImage(img_min, Math.round(ww - topbtnw*2.5 - img_min.Width/2), 1, img_min.Width, img_min.Height, 0, 0, img_min.Width, img_min.Height);
 	
@@ -957,18 +960,21 @@ function on_mouse_move(x, y) {
 			g_switchbar.on_mouse("move", x, y);
 		}
 	}
+
 	m_x = x;
 	m_y = y;
 }
 
 function on_mouse_lbtn_down(x, y) {
 	if(y < topbarh + 1) {
+
 		CloseBtn.MouseDown(x, y);
 		MaxBtn.MouseDown(x, y);
 		MinBtn.MouseDown(x, y);
 		if(show_menu){
 			for(var i = 0; i < MenubarBtn.length; i++){
 				if(MenubarBtn[i].MouseDown(x, y)){
+					menu_closed_t = 0;
 					hbtn = false;
 					menu_bar(i);
 				}
@@ -1019,7 +1025,41 @@ function on_mouse_lbtn_down(x, y) {
 	}
 }
 
+function sync_win_state() {
+  if(!UIComp) return;
+  window.SetTimeout(function(){
+    try { win_maxed = (UIComp.WindowState == 2); win_max_known = true; } catch(e) {}
+    window.RepaintRect(ww - topbtnw*2, 0, topbtnw, topbarh);
+  }, 60);
+}
+function toggle_win_max() {
+  if(!UIComp) return;
+  var want;
+  if(win_max_known) want = win_maxed ? 0 : 2;
+  else { try { want = (UIComp.WindowState == 2) ? 0 : 2; } catch(e) { want = 2; } }
+  try { UIComp.WindowState = want; } catch(e) { return; }
+  win_maxed = (want == 2); win_max_known = true;
+  window.RepaintRect(ww - topbtnw*2, 0, topbtnw, topbarh);
+  window.SetTimeout(function(){
+    try {
+      var cur = UIComp.WindowState;
+      if(cur != want) UIComp.WindowState = want;
+      win_maxed = (UIComp.WindowState == 2); win_max_known = true;
+    } catch(e) {}
+    window.RepaintRect(ww - topbtnw*2, 0, topbtnw, topbarh);
+  }, 220);
+}
 function on_mouse_lbtn_up(x, y) {
+  if(menu_closed_t > 0 && ((new Date()).getTime() - menu_closed_t) < 600 && y < topbarh + 1 && show_menu) {
+    var _mi = -1;
+    for(var _i = 0; _i < MenubarBtn.length; _i++){
+      var _b = MenubarBtn[_i];
+      if(_b && x >= _b.x && x <= _b.x + _b.width){ _mi = _i; break; }
+    }
+    menu_closed_t = 0;
+    if(_mi >= 0 && _mi != menu_closed_i){ menu_closed_i = -1; hbtn = false; menu_bar(_mi); return; }
+    menu_closed_i = -1;
+  }
 	if (seekbar.MouseUp()) {
 		PlaybackTimeText.ChangeText(TimeFmt(seekbar.Value));
 		fb.PlaybackTime = seekbar.Value;
@@ -1030,8 +1070,7 @@ function on_mouse_lbtn_up(x, y) {
 	if(y < topbarh + 1) {
 		if (CloseBtn.MouseUp()) UIComp.OhClose();
 		if (MaxBtn.MouseUp()) {
-			if(UIComp.WindowState != 2) UIComp.WindowState = 2;//maximized
-			else UIComp.WindowState = 0;// normal
+			toggle_win_max();
 		}
 		if (MinBtn.MouseUp()) UIComp.OhMinimize();
 		if(show_menu){
